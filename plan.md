@@ -1,58 +1,75 @@
-# Plan: Inkman — AI Colour Combination Assistant
+# Plan: Inkman — UPI Expense Tracker & Auto-Save Assistant (v1)
 
 ## Problem
 
-When painting or drawing, picking colours that work well together is hard
-without formal training in colour theory — especially when the "right"
-combination also depends on the medium (alcohol markers behave differently
-than watercolour or acrylic) and the mood you're going for (soft/pastel vs
-bold/vibrant). Inkman is an assistant that suggests colour combinations
-based on a starting colour, a medium, and a desired look.
+Manually logging UPI/GPay spends is tedious enough that most people stop
+doing it within a week, which means budgets stay theoretical and savings
+goals never get funded. GPay transactions already land as emails in Gmail
+— this project's end goal is an agent that reads those emails and turns
+them into a self-adjusting budget and auto-savings system, with zero
+manual entry.
 
-## MVP Scope
+v1 deliberately does none of that yet. It proves the smallest possible
+slice of the pipeline end-to-end — connect to Gmail, have an AI agent
+search it, show a result — before building parsing, budgeting, or savings
+logic on top of an unproven connection.
 
-The MVP proves the core loop: **give a colour → get usable palette
-suggestions, explained.**
+## MVP Scope (v1)
 
-- User inputs a base colour (hex code, or picks from a colour wheel/swatch
-  picker).
-- Assistant returns 3-4 palette suggestions based on standard colour theory
-  schemes: complementary, analogous, triadic, split-complementary.
-- Each suggestion shows the actual swatches (not just names) plus a one-line
-  explanation of why the scheme works (e.g. "complementary colours sit
-  opposite on the wheel and create strong contrast").
-- Simple web interface — no login, no saved history required.
+**Connect Gmail → agent searches for "UPI" in the subject line → show the
+count.** That's the whole app.
 
-**Out of scope for MVP:** medium-specific advice, mood/style-based filtering,
-image upload/colour extraction, saving palettes, user accounts.
+- Single-page web app: a **Connect Gmail** button, a **Search** button,
+  and a result area.
+- Gmail OAuth (`gmail.readonly` scope only — no write/modify access, no
+  full-mailbox scope) via a Node/Express backend.
+- An AI agent (Gemini API, via function calling) searches the connected
+  inbox for emails with "UPI" in the subject, default range last 30 days
+  (range is a parameter, not hardcoded, so it's easy to widen later).
+- The agent's system prompt lives in `agent.json` at the project root —
+  not editable from the UI. The backend reads it at request time, so
+  editing the file and restarting the server changes the agent's behavior
+  with no code change.
+- Clear empty state when no matches are found (not just "0").
+- Expired/revoked Gmail tokens show a "reconnect" prompt instead of
+  crashing.
+- Secrets (Gemini API key, Google OAuth client ID/secret) live in `.env`,
+  never hardcoded; `.env` and any credential/token files are gitignored.
 
-## Final Goals (stretch)
+**Out of scope for v1:** parsing transaction details (amount, payee, UPI
+ID, transaction ID), deduplication, structured storage, budget math,
+savings goals, categorization, charts/reports, multi-account support.
 
-- **Medium-aware suggestions**: factor in how a medium behaves — e.g. alcohol
-  markers blend and layer differently than gouache or watercolour, so a
-  palette that works on paper with one medium may not translate to another.
-- **Mood/style filter**: let the user pick a vibe (moody, vibrant, pastel,
-  earthy, high-contrast) and bias suggestions toward that.
-- **Image-based input**: upload a reference photo and extract a base palette
-  from it.
-- **Save and organize palettes**: let the user build a personal library of
-  favourite combinations, tagged by project or medium.
-- **"What goes with this?" reverse lookup**: input two colours you already
-  have and get suggestions for a third/fourth that completes the set.
+## Final Goals (the original idea — future work, not v1)
+
+- **Automatic transaction logging**: parse each matching email for
+  amount, payee/payer, UPI ID, date/time, transaction ID, debit/credit;
+  dedupe repeat notifications; store in a structured log.
+- **Spending reports**: category-wise breakdown (auto-categorized by
+  merchant), daily/weekly/monthly trend charts, budget-vs-actual,
+  selectable custom time ranges.
+- **Dynamic daily budget alerts**: user sets a budget for a period (e.g.
+  ₹15,000/month); each day, `remaining budget ÷ days left` becomes
+  today's safe-to-spend amount, sent as a notification; each day logged
+  as over- or under-budget.
+- **Goal-based auto-savings**: user states a savings goal (e.g. "Save
+  ₹20,000 for a trip by December"); underspend from the daily budget
+  check sweeps into that goal's bucket; overspend is tracked separately
+  and never silently drains savings; progress bar + projected completion
+  date; alert when the goal is reached.
 
 ## AI-Involvement Level
 
 **Target: Level 3 — AI drafts most of the implementation; I review, steer
 design decisions, and own the domain judgment calls.**
 
-Why: The core logic (colour wheel math, scheme generation, UI scaffolding) is
-well-defined and mostly mechanical, so I want AI to handle that implementation
-quickly rather than spend my time on boilerplate. My own value-add is in the
-parts that need judgment AI can't supply on its own: how palettes are
-explained to a non-technical user, how medium-specific nuance actually gets
-encoded (this needs my own knowledge of how alcohol markers and other media
-behave, not just textbook colour theory), and how the mood/style filter
-should feel to use. I review every diff before accepting it and test
-suggestions against my own sense of what "looks good," not just accept output
-that's technically correct by colour theory but impractical for actual
-painting.
+Why: OAuth plumbing, Express routing, and the Gemini function-calling
+wiring are mechanical enough that AI can draft them quickly. My own
+value-add is in the parts that need judgment: which Gmail scope is
+actually the most restrictive one that still works (`gmail.readonly` vs.
+the narrower `gmail.metadata`), how the agent's system prompt should be
+worded so it stays a real instruction rather than decoration, and
+verifying the OAuth/reconnect flow actually behaves correctly against my
+own Google account rather than trusting that it compiles. I review every
+diff before accepting it, particularly anywhere secrets or tokens are
+handled.
