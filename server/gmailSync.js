@@ -104,6 +104,17 @@ function getHeader(message, name) {
   return found ? found.value : '';
 }
 
+// Gmail's internalDate is the message's true received timestamp (epoch
+// ms, UTC). Formatted in IST specifically — not the server's local
+// timezone, which may be anything once deployed (e.g. Railway runs UTC)
+// — since this app's transactions are inherently India-local.
+function gmailDateToIst_(internalDateMs) {
+  const d = new Date(Number(internalDateMs));
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(d);
+}
+
 const FETCH_CONCURRENCY = 2;
 
 // Runs `fn` over `items` with at most `limit` in flight at once — plain
@@ -173,7 +184,11 @@ async function fetchNewGpayEmails(oauth2Client) {
       return {
         id: ref.id,
         subject: getHeader(full.data, 'Subject'),
-        body: extractPlainText(full.data).slice(0, 3000)
+        body: extractPlainText(full.data).slice(0, 3000),
+        // Gmail's own message timestamp — authoritative, never trusted to
+        // the LLM. A model asked to extract a date from free-text email
+        // body can (and did) hallucinate wildly wrong years; this can't.
+        date: gmailDateToIst_(full.data.internalDate)
       };
     });
 
@@ -199,19 +214,23 @@ async function runGmailSync(oauth2Client) {
 
   let stored = 0;
   let skipped = 0;
+  const dateByMessageId = new Map(emails.map((e) => [e.id, e.date]));
 
   for (const batch of chunk(emails, BATCH_SIZE)) {
     const knownMerchants = getAllMerchantCategories();
     const extracted = await extractTransactions(systemPrompt, batch, knownMerchants);
 
     for (const txn of extracted) {
+      // The LLM's own txn.date is never used — Gmail's real message date
+      // (captured per-email above) is the only source of truth here.
+      const realDate = dateByMessageId.get(txn.gmail_message_id);
       if (txn.type !== 'debit') { skipped++; continue; }
-      if (!txn.amount || !txn.date || transactionExists(txn.gmail_message_id)) { skipped++; continue; }
+      if (!txn.amount || !realDate || transactionExists(txn.gmail_message_id)) { skipped++; continue; }
 
       insertTransaction({
         gmailMessageId: txn.gmail_message_id,
         source: 'gmail',
-        date: txn.date,
+        date: realDate,
         amount: txn.amount,
         party: txn.party,
         category: txn.category

@@ -60,6 +60,12 @@ function buildExtractionPrompt(knownMerchants, emails) {
 
 // ---------- Gemini ----------
 // Structured output via responseSchema — verified working this session.
+// Note: no `date` field is requested from any provider below. Gmail's own
+// message timestamp is the actual transaction date and is captured
+// deterministically in gmailSync.js — asking the model to also extract a
+// date from free-text email body led it to hallucinate wildly wrong years
+// on one real batch (2017–2022 instead of 2026). The date it might still
+// mention in its reasoning is simply ignored.
 
 const GEMINI_EXTRACTION_SCHEMA = {
   type: Type.OBJECT,
@@ -72,11 +78,10 @@ const GEMINI_EXTRACTION_SCHEMA = {
           gmail_message_id: { type: Type.STRING },
           type: { type: Type.STRING, description: '"debit" or "credit"' },
           amount: { type: Type.NUMBER },
-          date: { type: Type.STRING, description: 'YYYY-MM-DD' },
           party: { type: Type.STRING, description: 'The payee or payer name.' },
           category: { type: Type.STRING }
         },
-        required: ['gmail_message_id', 'type', 'amount', 'date', 'party', 'category']
+        required: ['gmail_message_id', 'type', 'amount', 'party', 'category']
       }
     }
   },
@@ -118,7 +123,7 @@ async function geminiGenerateText(apiKey, systemPrompt, userPrompt) {
 const JSON_SHAPE_INSTRUCTIONS =
   'Respond with ONLY a JSON object of this exact shape, no other text, no markdown fences: ' +
   '{"transactions": [{"gmail_message_id": "string", "type": "debit or credit", ' +
-  '"amount": number, "date": "YYYY-MM-DD", "party": "string", "category": "string"}]}';
+  '"amount": number, "party": "string", "category": "string"}]}';
 
 async function openAiCompatibleExtract(apiKey, baseURL, model, systemPrompt, promptText) {
   const client = new OpenAI({ apiKey, baseURL });
@@ -164,11 +169,10 @@ const ANTHROPIC_EXTRACTION_TOOL = {
             gmail_message_id: { type: 'string' },
             type: { type: 'string', description: '"debit" or "credit"' },
             amount: { type: 'number' },
-            date: { type: 'string', description: 'YYYY-MM-DD' },
             party: { type: 'string' },
             category: { type: 'string' }
           },
-          required: ['gmail_message_id', 'type', 'amount', 'date', 'party', 'category']
+          required: ['gmail_message_id', 'type', 'amount', 'party', 'category']
         }
       }
     },
