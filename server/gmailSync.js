@@ -17,7 +17,11 @@ const AGENT_CONFIG_PATH = path.join(__dirname, '..', 'agent.json');
 // come from the bank (e.g. "alerts@hdfcbank.bank.in") rather than GPay.
 const SEARCH_QUERY = 'subject:UPI';
 const SYNC_WINDOW = 'newer_than:60d';
-const BATCH_SIZE = 20;
+// Kept small deliberately: Groq's free tier caps at 8000 tokens/minute,
+// and ~20 emails per extraction call was measured at ~8450 tokens —
+// over the limit. 5 comfortably fits every provider's free tier, at the
+// cost of more (smaller) calls per sync.
+const BATCH_SIZE = 5;
 // A single sync call only processes this many NEW messages. A large
 // first-time backfill (hundreds of messages) will exceed Gmail's
 // per-minute-per-user quota if attempted in one shot regardless of
