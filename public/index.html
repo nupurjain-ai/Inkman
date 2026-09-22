@@ -14,6 +14,7 @@
       <span id="connectedAs" class="muted" hidden></span>
       <button id="syncBtn" class="btn" hidden>Sync</button>
       <button id="jarBtn" class="jar-icon-btn" aria-label="Savings Jar" title="Savings Jar">🏺</button>
+      <button id="settingsBtn" class="jar-icon-btn" aria-label="Settings" title="Settings">⚙️</button>
     </div>
   </header>
 
@@ -40,6 +41,13 @@
     <div class="modal">
       <button class="modal-close" data-close-modal="jarModal" aria-label="Close">&times;</button>
       <div id="jarModalBody"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <button class="modal-close" data-close-modal="settingsModal" aria-label="Close">&times;</button>
+      <div id="settingsModalBody"><p class="muted">Loading…</p></div>
     </div>
   </div>
 

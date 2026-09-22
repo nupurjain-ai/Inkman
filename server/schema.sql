@@ -50,3 +50,14 @@ CREATE TABLE IF NOT EXISTS jar_settings (
   bank_balance REAL
 );
 INSERT OR IGNORE INTO jar_settings (id, bank_balance) VALUES (1, NULL);
+
+-- User-supplied LLM key, entered via the Settings modal. When set, this
+-- replaces the .env GEMINI_API_KEY / hardcoded provider for all agent
+-- calls (sync extraction + day summaries). The key is never sent back to
+-- the browser once saved — only provider + a masked hint.
+CREATE TABLE IF NOT EXISTS llm_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  provider TEXT,              -- 'gemini' | 'openai' | 'anthropic' | 'groq'
+  api_key TEXT
+);
+INSERT OR IGNORE INTO llm_settings (id, provider, api_key) VALUES (1, NULL, NULL);

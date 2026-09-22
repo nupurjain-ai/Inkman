@@ -12,6 +12,9 @@ const dayJarBtn = document.getElementById('dayJarBtn');
 const jarModal = document.getElementById('jarModal');
 const jarModalBody = document.getElementById('jarModalBody');
 const jarBtn = document.getElementById('jarBtn');
+const settingsModal = document.getElementById('settingsModal');
+const settingsModalBody = document.getElementById('settingsModalBody');
+const settingsBtn = document.getElementById('settingsBtn');
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -211,7 +214,7 @@ function closeModal(modal) { modal.hidden = true; }
 document.querySelectorAll('[data-close-modal]').forEach((btn) => {
   btn.addEventListener('click', () => closeModal(document.getElementById(btn.dataset.closeModal)));
 });
-[dayModal, jarModal].forEach((modal) => {
+[dayModal, jarModal, settingsModal].forEach((modal) => {
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
 });
 
@@ -477,6 +480,82 @@ async function submitGoal(e) {
 async function deleteGoal(id) {
   await fetch(`/api/jar/goals/${id}`, { method: 'DELETE' });
   await refreshJarModal();
+}
+
+// --- Settings (bring-your-own LLM key) ---
+
+const PROVIDER_LABELS = { gemini: 'Google Gemini', openai: 'OpenAI', anthropic: 'Anthropic (Claude)', groq: 'Groq' };
+
+settingsBtn.addEventListener('click', openSettingsModal);
+
+async function openSettingsModal() {
+  openModal(settingsModal);
+  settingsModalBody.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const res = await fetch('/api/settings/llm');
+    renderSettingsModal(await res.json());
+  } catch (err) {
+    settingsModalBody.innerHTML = '<p class="muted">Failed to load settings.</p>';
+  }
+}
+
+function renderSettingsModal(data) {
+  const optionsHtml = Object.entries(PROVIDER_LABELS)
+    .map(([value, label]) => `<option value="${value}" ${data.provider === value ? 'selected' : ''}>${label}</option>`)
+    .join('');
+
+  settingsModalBody.innerHTML = `
+    <h3 style="margin-top:0;">Settings</h3>
+    <p class="muted" style="font-size:0.85rem;">
+      Bring your own API key for the AI agent that reads and categorizes your Gmail transactions.
+      ${data.hasKey ? `Currently using <strong>${PROVIDER_LABELS[data.provider] || data.provider}</strong> (key ending ${escapeHtml(data.maskedKey || '')}).` : 'No key saved yet — falling back to the server default, if any.'}
+    </p>
+    <form id="llmSettingsForm">
+      <div class="budget-edit" style="flex-wrap:wrap;">
+        <label for="providerSelect">Provider</label>
+        <select id="providerSelect">${optionsHtml}</select>
+      </div>
+      <div class="budget-edit" style="flex-wrap:wrap;">
+        <label for="apiKeyInput">API key</label>
+        <input id="apiKeyInput" type="password" placeholder="Paste your key" autocomplete="off" style="flex:1;min-width:160px;" />
+      </div>
+      <button type="submit" class="btn primary">Save</button>
+    </form>
+    <p id="settingsSaveStatus" class="muted" style="margin-top:8px;"></p>
+  `;
+
+  document.getElementById('llmSettingsForm').addEventListener('submit', submitLlmSettings);
+}
+
+async function submitLlmSettings(e) {
+  e.preventDefault();
+  const provider = document.getElementById('providerSelect').value;
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  const statusEl = document.getElementById('settingsSaveStatus');
+
+  if (!apiKey) {
+    statusEl.textContent = 'Enter an API key first.';
+    return;
+  }
+
+  statusEl.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/settings/llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, apiKey })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      statusEl.textContent = `Save failed: ${err.error || 'unknown error'}`;
+      return;
+    }
+    statusEl.textContent = 'Saved.';
+    const refreshed = await fetch('/api/settings/llm');
+    renderSettingsModal(await refreshed.json());
+  } catch (err) {
+    statusEl.textContent = 'Network error — is the server running?';
+  }
 }
 
 renderPanels();

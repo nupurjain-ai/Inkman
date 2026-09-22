@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
-const { GoogleGenAI, Type } = require('@google/genai');
 const { isQuotaError_ } = require('./auth');
+const { extractTransactions, generateText } = require('./llmProviders');
 const {
   insertTransaction,
   transactionExists,
@@ -11,7 +11,6 @@ const {
 } = require('./models/transactions');
 
 const AGENT_CONFIG_PATH = path.join(__dirname, '..', 'agent.json');
-const MODEL = 'gemini-3.6-flash';
 // UPI transaction alerts come from whichever bank/app the user has —
 // filtering by subject rather than a specific sender (e.g. GPay's own
 // address) is what actually matches real inboxes, since alerts often
@@ -27,12 +26,6 @@ const BATCH_SIZE = 20;
 // stored messages are always skipped, so nothing is reprocessed).
 const MAX_NEW_MESSAGES_PER_SYNC = 40;
 
-let genAI = null;
-function client() {
-  if (!genAI) genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  return genAI;
-}
-
 // Read fresh each sync (not cached) so editing agent.json takes effect
 // without a restart.
 function loadSystemPrompt() {
@@ -42,22 +35,6 @@ function loadSystemPrompt() {
     throw new Error('agent.json must contain a non-empty "system_prompt" string');
   }
   return parsed.system_prompt;
-}
-
-function isTransientError_(err) {
-  const code = err.status || err.code || (err.response && err.response.status);
-  return code === 503 || code === 429 || /UNAVAILABLE|RESOURCE_EXHAUSTED/i.test(err.message || '');
-}
-
-async function generateWithRetry_(ai, params, retries) {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await ai.models.generateContent(params);
-    } catch (err) {
-      if (attempt >= retries || !isTransientError_(err)) throw err;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
-    }
-  }
 }
 
 function chunk(arr, size) {
@@ -203,64 +180,15 @@ async function fetchNewGpayEmails(oauth2Client) {
   }
 }
 
-const EXTRACTION_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    transactions: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          gmail_message_id: { type: Type.STRING },
-          type: { type: Type.STRING, description: '"debit" or "credit"' },
-          amount: { type: Type.NUMBER },
-          date: { type: Type.STRING, description: 'YYYY-MM-DD' },
-          party: { type: Type.STRING, description: 'The payee or payer name.' },
-          category: { type: Type.STRING }
-        },
-        required: ['gmail_message_id', 'type', 'amount', 'date', 'party', 'category']
-      }
-    }
-  },
-  required: ['transactions']
-};
-
-async function extractBatch(ai, systemPrompt, emails) {
-  const knownMerchants = getAllMerchantCategories();
-  const emailBlock = emails
-    .map((e) => `--- Email gmail_message_id: ${e.id} ---\nSubject: ${e.subject}\nBody:\n${e.body}`)
-    .join('\n\n');
-
-  const contents = [{
-    role: 'user',
-    parts: [{
-      text:
-        `Known merchant categories (reuse exactly, case-insensitive match on merchant): ${JSON.stringify(knownMerchants)}\n\n` +
-        `Extract one transaction per email below, keyed by its gmail_message_id.\n\n${emailBlock}`
-    }]
-  }];
-
-  const config = {
-    systemInstruction: systemPrompt,
-    responseMimeType: 'application/json',
-    responseSchema: EXTRACTION_SCHEMA
-  };
-
-  const result = await generateWithRetry_(ai, { model: MODEL, contents, config }, 2);
-  const parsed = JSON.parse(result.text);
-  return parsed.transactions || [];
-}
-
 /**
- * Fetches new GPay emails, has Gemini extract + categorize each one
- * (grounded in the actual email text, not recalled from memory), and
- * deterministically stores the result. Per-day/month totals are plain
- * SQL sums over the stored amounts — arithmetic never goes through the
- * model.
+ * Fetches new GPay emails, has the configured LLM provider extract +
+ * categorize each one (grounded in the actual email text, not recalled
+ * from memory), and deterministically stores the result. Per-day/month
+ * totals are plain SQL sums over the stored amounts — arithmetic never
+ * goes through the model.
  */
 async function runGmailSync(oauth2Client) {
   const systemPrompt = loadSystemPrompt();
-  const ai = client();
 
   const { emails, hasMore } = await fetchNewGpayEmails(oauth2Client);
   if (emails.length === 0) return { newCount: 0, skippedCount: 0, hasMore: false };
@@ -269,7 +197,8 @@ async function runGmailSync(oauth2Client) {
   let skipped = 0;
 
   for (const batch of chunk(emails, BATCH_SIZE)) {
-    const extracted = await extractBatch(ai, systemPrompt, batch);
+    const knownMerchants = getAllMerchantCategories();
+    const extracted = await extractTransactions(systemPrompt, batch, knownMerchants);
 
     for (const txn of extracted) {
       if (txn.type !== 'debit') { skipped++; continue; }
@@ -303,24 +232,18 @@ async function summarizeDay(date, spent, budget, transactions) {
   }
 
   const systemPrompt = loadSystemPrompt();
-  const ai = client();
 
   const lines = transactions.map((t) =>
     `${t.source === 'cash' ? 'Cash' : 'UPI'} ₹${t.amount} to ${t.party || 'unknown'} (${t.category || 'Uncategorized'})${t.is_exception ? ' [exception: ' + t.exception_name + ']' : ''}`
   );
 
-  const contents = [{
-    role: 'user',
-    parts: [{
-      text:
-        `Summarize this day's spending in 1-2 short sentences, friendly and plain, no markdown.\n` +
-        `Date: ${date}\nBudget: ₹${budget}\nTotal spent (excluding exceptions): ₹${spent}\n` +
-        `Transactions:\n${lines.join('\n')}`
-    }]
-  }];
+  const userPrompt =
+    `Summarize this day's spending in 1-2 short sentences, friendly and plain, no markdown.\n` +
+    `Date: ${date}\nBudget: ₹${budget}\nTotal spent (excluding exceptions): ₹${spent}\n` +
+    `Transactions:\n${lines.join('\n')}`;
 
-  const result = await generateWithRetry_(ai, { model: MODEL, contents, config: { systemInstruction: systemPrompt } }, 2);
-  return (result.text || '').trim() || `You spent ₹${spent} on ${date}.`;
+  const text = await generateText(systemPrompt, userPrompt);
+  return text || `You spent ₹${spent} on ${date}.`;
 }
 
 module.exports = { runGmailSync, loadSystemPrompt, summarizeDay };

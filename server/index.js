@@ -9,13 +9,23 @@ const { seedDefaultIfEmpty } = require('./models/dailyBudgets');
 const calendarRoutes = require('./calendarRoutes');
 const dayRoutes = require('./dayRoutes');
 const jarRoutes = require('./jarRoutes');
+const settingsRoutes = require('./settingsRoutes');
+const { getLlmSettings } = require('./models/llmSettings');
 
-const REQUIRED_ENV = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'GEMINI_API_KEY'];
+// Gmail OAuth credentials are always required — there's no per-user
+// substitute for those. GEMINI_API_KEY is NOT required: a user can
+// instead supply their own key (any provider) via the Settings modal,
+// checked lazily by llmProviders.resolveProvider() whenever an LLM call
+// is actually made.
+const REQUIRED_ENV = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI'];
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error('Missing required environment variables: ' + missing.join(', '));
   console.error('Copy .env.example to .env and fill them in.');
   process.exit(1);
+}
+if (!process.env.GEMINI_API_KEY && !getLlmSettings().apiKey) {
+  console.warn('No GEMINI_API_KEY in .env and no LLM key saved yet — set one via the Settings (⚙) modal before syncing.');
 }
 
 // Seeds a starting budget so the calendar has something to compare
@@ -30,6 +40,7 @@ app.use(authRouter);
 app.use(calendarRoutes);
 app.use(dayRoutes);
 app.use(jarRoutes);
+app.use(settingsRoutes);
 
 app.post('/api/sync', async (req, res) => {
   if (!isConnected()) {
@@ -49,6 +60,9 @@ app.post('/api/sync', async (req, res) => {
         (err.code || (err.response && err.response.status)) + ' message=' + err.message);
       clearTokens();
       return res.status(401).json({ error: 'not_connected', reason: 'expired' });
+    }
+    if (err.noApiKey) {
+      return res.status(400).json({ error: 'no_api_key', detail: err.message });
     }
     console.error('Sync failed:', err);
     res.status(500).json({ error: 'sync_failed', detail: err.message });
