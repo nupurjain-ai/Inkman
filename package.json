@@ -2,13 +2,14 @@
   "name": "inkman",
   "version": "1.0.0",
   "private": true,
-  "description": "UPI Expense Tracker & Auto-Save Assistant — v1: connect Gmail, agent searches for UPI emails, shows a count.",
+  "description": "UPI Monthly Budget Tracker — calendar-based budget tracker with Gmail-sourced spend, savings jar, and goals.",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
+    "better-sqlite3": "^11.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "googleapis": "^140.0.1"

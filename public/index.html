@@ -3,31 +3,45 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inkman — UPI Email Search</title>
+  <title>Inkman — Budget Calendar</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="card">
+  <header class="topbar">
     <h1>Inkman</h1>
-    <p class="subtitle">Connect Gmail, then search for UPI emails in the subject line.</p>
-
-    <section id="connection">
+    <div class="topbar-actions">
       <button id="connectBtn" class="btn primary">Connect Gmail</button>
-      <p id="connectedAs" class="muted" hidden></p>
-      <p id="reconnectNotice" class="notice" hidden>
-        Your Gmail connection expired or was revoked. Please reconnect.
-      </p>
-    </section>
+      <span id="connectedAs" class="muted" hidden></span>
+      <button id="syncBtn" class="btn" hidden>Sync</button>
+      <button id="jarBtn" class="jar-icon-btn" aria-label="Savings Jar" title="Savings Jar">🏺</button>
+    </div>
+  </header>
 
-    <section id="searchSection" hidden>
-      <label for="daysInput">Search the last</label>
-      <input id="daysInput" type="number" min="1" max="365" value="30" />
-      <label for="daysInput">days</label>
-      <button id="searchBtn" class="btn">Search</button>
+  <p id="reconnectNotice" class="notice" hidden>
+    Your Gmail connection expired or was revoked. Please reconnect.
+  </p>
+  <p id="syncStatus" class="muted sync-status" hidden></p>
 
-      <div id="result" class="result"></div>
-    </section>
+  <main class="calendar-wrap">
+    <button id="prevBtn" class="nav-arrow" aria-label="Previous month">&lsaquo;</button>
+    <div id="scroller" class="calendar-scroller"></div>
+    <button id="nextBtn" class="nav-arrow" aria-label="Next month">&rsaquo;</button>
   </main>
+
+  <div id="dayModal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <button class="modal-close" data-close-modal="dayModal" aria-label="Close">&times;</button>
+      <button id="dayJarBtn" class="jar-icon-btn modal-jar-icon" aria-label="Savings Jar" title="Savings Jar">🏺</button>
+      <div id="dayModalBody"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
+
+  <div id="jarModal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <button class="modal-close" data-close-modal="jarModal" aria-label="Close">&times;</button>
+      <div id="jarModalBody"><p class="muted">Loading…</p></div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
