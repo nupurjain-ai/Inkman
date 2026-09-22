@@ -11,7 +11,7 @@ const DEFAULT_MODELS = {
   gemini: 'gemini-3.6-flash',
   openai: 'gpt-4o-mini',
   anthropic: 'claude-sonnet-5',
-  groq: 'llama-3.3-70b-versatile'
+  groq: 'openai/gpt-oss-120b'
 };
 
 /**
