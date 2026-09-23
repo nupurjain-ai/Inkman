@@ -499,7 +499,11 @@ async function openSettingsModal() {
   }
 }
 
+let settingsData = null;
+
 function renderSettingsModal(data) {
+  settingsData = data;
+  const defaultModels = data.defaultModels || {};
   const optionsHtml = Object.entries(PROVIDER_LABELS)
     .map(([value, label]) => `<option value="${value}" ${data.provider === value ? 'selected' : ''}>${label}</option>`)
     .join('');
@@ -517,13 +521,21 @@ function renderSettingsModal(data) {
       </div>
       <div class="budget-edit" style="flex-wrap:wrap;">
         <label for="apiKeyInput">API key</label>
-        <input id="apiKeyInput" type="password" placeholder="Paste your key" autocomplete="off" style="flex:1;min-width:160px;" />
+        <input id="apiKeyInput" type="password" placeholder="${data.hasKey ? 'Leave blank to keep current key' : 'Paste your key'}" autocomplete="off" style="flex:1;min-width:160px;" />
       </div>
-      <button type="submit" class="btn primary">Save</button>
+      <div class="budget-edit" style="flex-wrap:wrap;">
+        <label for="modelInput">Model</label>
+        <input id="modelInput" type="text" value="${escapeHtml(data.model || '')}" placeholder="${escapeHtml(defaultModels[data.provider] || 'default')}" autocomplete="off" style="flex:1;min-width:160px;" />
+      </div>
+      <p class="muted" style="font-size:0.78rem;margin:4px 0 0;">Leave Model blank to use the built-in default for whichever provider is selected above.</p>
+      <button type="submit" class="btn primary" style="margin-top:8px;">Save</button>
     </form>
     <p id="settingsSaveStatus" class="muted" style="margin-top:8px;"></p>
   `;
 
+  document.getElementById('providerSelect').addEventListener('change', (e) => {
+    document.getElementById('modelInput').placeholder = defaultModels[e.target.value] || 'default';
+  });
   document.getElementById('llmSettingsForm').addEventListener('submit', submitLlmSettings);
 }
 
@@ -531,10 +543,12 @@ async function submitLlmSettings(e) {
   e.preventDefault();
   const provider = document.getElementById('providerSelect').value;
   const apiKey = document.getElementById('apiKeyInput').value.trim();
+  const model = document.getElementById('modelInput').value.trim();
   const statusEl = document.getElementById('settingsSaveStatus');
 
-  if (!apiKey) {
-    statusEl.textContent = 'Enter an API key first.';
+  const switchingProvider = settingsData && settingsData.provider !== provider;
+  if (!apiKey && (switchingProvider || !settingsData || !settingsData.hasKey)) {
+    statusEl.textContent = 'Enter an API key first (required when selecting a different provider).';
     return;
   }
 
@@ -543,7 +557,7 @@ async function submitLlmSettings(e) {
     const res = await fetch('/api/settings/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, apiKey })
+      body: JSON.stringify({ provider, apiKey: apiKey || undefined, model: model || undefined })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

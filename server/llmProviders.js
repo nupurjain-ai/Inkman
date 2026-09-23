@@ -5,8 +5,11 @@ const { getLlmSettings } = require('./models/llmSettings');
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 
-// One reasonable default model per provider. Not user-configurable yet —
-// only the provider + key are exposed in Settings for now.
+// Fallback model per provider, used whenever the user hasn't set an
+// explicit override in Settings. Kept as a fallback rather than the only
+// option because model availability has already drifted mid-session
+// (Gemini and Groq both deprecated their previous defaults) — an
+// override in Settings means that never has to wait on a code change.
 const DEFAULT_MODELS = {
   gemini: 'gemini-3.6-flash',
   openai: 'gpt-4o-mini',
@@ -15,17 +18,18 @@ const DEFAULT_MODELS = {
 };
 
 /**
- * Which provider/key to actually use: a user-saved key from the Settings
- * modal takes priority; otherwise fall back to GEMINI_API_KEY from .env
- * so existing local/deployed setups keep working unchanged.
+ * Which provider/key/model to actually use: a user-saved key from the
+ * Settings modal takes priority; otherwise fall back to GEMINI_API_KEY
+ * from .env so existing local/deployed setups keep working unchanged.
+ * Model likewise falls back to DEFAULT_MODELS[provider] if not set.
  */
 function resolveProvider() {
   const saved = getLlmSettings();
   if (saved.provider && saved.apiKey) {
-    return { provider: saved.provider, apiKey: saved.apiKey };
+    return { provider: saved.provider, apiKey: saved.apiKey, model: saved.model || DEFAULT_MODELS[saved.provider] };
   }
   if (process.env.GEMINI_API_KEY) {
-    return { provider: 'gemini', apiKey: process.env.GEMINI_API_KEY };
+    return { provider: 'gemini', apiKey: process.env.GEMINI_API_KEY, model: DEFAULT_MODELS.gemini };
   }
   const err = new Error('No LLM API key configured. Set one via the Settings (⚙) modal, or set GEMINI_API_KEY in .env.');
   err.noApiKey = true;
@@ -88,10 +92,10 @@ const GEMINI_EXTRACTION_SCHEMA = {
   required: ['transactions']
 };
 
-async function geminiExtract(apiKey, systemPrompt, promptText) {
+async function geminiExtract(apiKey, model, systemPrompt, promptText) {
   const ai = new GoogleGenAI({ apiKey });
   const result = await withRetry(() => ai.models.generateContent({
-    model: DEFAULT_MODELS.gemini,
+    model,
     contents: [{ role: 'user', parts: [{ text: promptText }] }],
     config: {
       systemInstruction: systemPrompt,
@@ -103,10 +107,10 @@ async function geminiExtract(apiKey, systemPrompt, promptText) {
   return parsed.transactions || [];
 }
 
-async function geminiGenerateText(apiKey, systemPrompt, userPrompt) {
+async function geminiGenerateText(apiKey, model, systemPrompt, userPrompt) {
   const ai = new GoogleGenAI({ apiKey });
   const result = await withRetry(() => ai.models.generateContent({
-    model: DEFAULT_MODELS.gemini,
+    model,
     contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
     config: { systemInstruction: systemPrompt }
   }));
@@ -180,10 +184,10 @@ const ANTHROPIC_EXTRACTION_TOOL = {
   }
 };
 
-async function anthropicExtract(apiKey, systemPrompt, promptText) {
+async function anthropicExtract(apiKey, model, systemPrompt, promptText) {
   const client = new Anthropic({ apiKey });
   const response = await withRetry(() => client.messages.create({
-    model: DEFAULT_MODELS.anthropic,
+    model,
     max_tokens: 4096,
     system: systemPrompt,
     tools: [ANTHROPIC_EXTRACTION_TOOL],
@@ -194,10 +198,10 @@ async function anthropicExtract(apiKey, systemPrompt, promptText) {
   return (toolUse && toolUse.input && toolUse.input.transactions) || [];
 }
 
-async function anthropicGenerateText(apiKey, systemPrompt, userPrompt) {
+async function anthropicGenerateText(apiKey, model, systemPrompt, userPrompt) {
   const client = new Anthropic({ apiKey });
   const response = await withRetry(() => client.messages.create({
-    model: DEFAULT_MODELS.anthropic,
+    model,
     max_tokens: 1024,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }]
@@ -213,18 +217,18 @@ async function anthropicGenerateText(apiKey, systemPrompt, userPrompt) {
  * email content, grounded in the actual text (not recalled from memory).
  */
 async function extractTransactions(systemPrompt, emails, knownMerchants) {
-  const { provider, apiKey } = resolveProvider();
+  const { provider, apiKey, model } = resolveProvider();
   const promptText = buildExtractionPrompt(knownMerchants, emails);
 
   switch (provider) {
     case 'gemini':
-      return geminiExtract(apiKey, systemPrompt, promptText);
+      return geminiExtract(apiKey, model, systemPrompt, promptText);
     case 'openai':
-      return openAiCompatibleExtract(apiKey, undefined, DEFAULT_MODELS.openai, systemPrompt, promptText);
+      return openAiCompatibleExtract(apiKey, undefined, model, systemPrompt, promptText);
     case 'groq':
-      return openAiCompatibleExtract(apiKey, GROQ_BASE_URL, DEFAULT_MODELS.groq, systemPrompt, promptText);
+      return openAiCompatibleExtract(apiKey, GROQ_BASE_URL, model, systemPrompt, promptText);
     case 'anthropic':
-      return anthropicExtract(apiKey, systemPrompt, promptText);
+      return anthropicExtract(apiKey, model, systemPrompt, promptText);
     default:
       throw new Error(`Unknown LLM provider: ${provider}`);
   }
@@ -232,20 +236,20 @@ async function extractTransactions(systemPrompt, emails, knownMerchants) {
 
 /** Plain natural-language generation (used for day summaries). */
 async function generateText(systemPrompt, userPrompt) {
-  const { provider, apiKey } = resolveProvider();
+  const { provider, apiKey, model } = resolveProvider();
 
   switch (provider) {
     case 'gemini':
-      return geminiGenerateText(apiKey, systemPrompt, userPrompt);
+      return geminiGenerateText(apiKey, model, systemPrompt, userPrompt);
     case 'openai':
-      return openAiCompatibleGenerateText(apiKey, undefined, DEFAULT_MODELS.openai, systemPrompt, userPrompt);
+      return openAiCompatibleGenerateText(apiKey, undefined, model, systemPrompt, userPrompt);
     case 'groq':
-      return openAiCompatibleGenerateText(apiKey, GROQ_BASE_URL, DEFAULT_MODELS.groq, systemPrompt, userPrompt);
+      return openAiCompatibleGenerateText(apiKey, GROQ_BASE_URL, model, systemPrompt, userPrompt);
     case 'anthropic':
-      return anthropicGenerateText(apiKey, systemPrompt, userPrompt);
+      return anthropicGenerateText(apiKey, model, systemPrompt, userPrompt);
     default:
       throw new Error(`Unknown LLM provider: ${provider}`);
   }
 }
 
-module.exports = { extractTransactions, generateText, resolveProvider };
+module.exports = { extractTransactions, generateText, resolveProvider, DEFAULT_MODELS };

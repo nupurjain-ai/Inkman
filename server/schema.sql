@@ -58,6 +58,11 @@ INSERT OR IGNORE INTO jar_settings (id, bank_balance) VALUES (1, NULL);
 CREATE TABLE IF NOT EXISTS llm_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   provider TEXT,              -- 'gemini' | 'openai' | 'anthropic' | 'groq'
-  api_key TEXT
+  api_key TEXT,
+  model TEXT                  -- optional override; falls back to a per-provider default when blank
 );
+-- Deliberately NOT listing `model` here: on a database that predates this
+-- column, SQLite validates column names when the statement is prepared,
+-- before "OR IGNORE" semantics even apply — the migration in db.js adds
+-- the column afterward, and it's simply NULL for this row until then.
 INSERT OR IGNORE INTO llm_settings (id, provider, api_key) VALUES (1, NULL, NULL);
