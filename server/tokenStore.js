@@ -1,14 +1,22 @@
 /**
  * Single-user token persistence. This app runs one Gmail connection at a
  * time (personal use, not multi-tenant), so a flat gitignored JSON file
- * next to the project is enough — no session store/DB needed for v1.
+ * is enough — no session store/DB needed for v1.
+ *
+ * Lives inside data/ specifically so that a single mounted volume (at
+ * data/) covers both this and the SQLite database on a deployed
+ * environment like Railway — storing it at the project root instead
+ * meant a volume mounted only at data/ would save the database but
+ * still lose the Gmail connection on every redeploy.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
 
-const TOKEN_PATH = path.join(__dirname, '..', '.gmail-token.json');
+const DATA_DIR = path.join(__dirname, '..', 'data');
+const TOKEN_PATH = path.join(DATA_DIR, 'gmail-token.json');
+fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function loadTokens() {
   try {
