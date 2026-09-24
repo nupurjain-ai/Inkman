@@ -4,37 +4,66 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inkman — Budget Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>Inkman</h1>
-    <div class="topbar-actions">
-      <button id="connectBtn" class="btn primary">Connect Gmail</button>
+  <section id="onboardingView" class="onboarding">
+    <img class="onboarding-cat" src="assets/cat.png" alt="" />
+    <h1 class="onboarding-title">Welcome to Inkman</h1>
+    <p class="onboarding-subtitle">A calendar that turns your daily UPI spending into savings, automatically.</p>
+    <button id="onboardingContinueBtn" class="onboarding-continue">Continue</button>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="avatar">I</span>
+        <span class="brand-name">Inkman</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="jarBtn" class="icon-btn" aria-label="Savings Jar" title="Savings Jar"><img src="assets/jar.png" alt="" class="jar-icon-img" /></button>
+        <button id="historyBtn" class="icon-btn" aria-label="Spending &amp; Savings History" title="History">📜</button>
+        <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <div class="utility-row">
       <span id="connectedAs" class="muted" hidden></span>
+      <button id="connectBtn" class="btn primary">Connect Gmail</button>
       <button id="syncBtn" class="btn" hidden>Sync</button>
-      <button id="jarBtn" class="jar-icon-btn" aria-label="Savings Jar" title="Savings Jar">🏺</button>
-      <button id="settingsBtn" class="jar-icon-btn" aria-label="Settings" title="Settings">⚙️</button>
     </div>
-  </header>
 
-  <p id="reconnectNotice" class="notice" hidden>
-    Your Gmail connection expired or was revoked. Please reconnect.
-  </p>
-  <p id="syncStatus" class="muted sync-status" hidden></p>
+    <p id="reconnectNotice" class="notice" hidden>
+      Your Gmail connection expired or was revoked. Please reconnect.
+    </p>
+    <p id="syncStatus" class="muted sync-status" hidden></p>
 
-  <main class="calendar-wrap">
-    <button id="prevBtn" class="nav-arrow" aria-label="Previous month">&lsaquo;</button>
-    <div id="scroller" class="calendar-scroller"></div>
-    <button id="nextBtn" class="nav-arrow" aria-label="Next month">&rsaquo;</button>
-  </main>
+    <a href="#/" id="backLink" class="back-link" hidden>&lsaquo; Calendar</a>
 
-  <div id="dayModal" class="modal-backdrop" hidden>
-    <div class="modal">
-      <button class="modal-close" data-close-modal="dayModal" aria-label="Close">&times;</button>
-      <button id="dayJarBtn" class="jar-icon-btn modal-jar-icon" aria-label="Savings Jar" title="Savings Jar">🏺</button>
-      <div id="dayModalBody"><p class="muted">Loading…</p></div>
-    </div>
+    <main>
+      <section class="calendar-card calendar-only-wrap" id="calendarOnlyView">
+        <div class="calendar-wrap" id="calendarWrap">
+          <button id="prevBtn" class="nav-arrow" aria-label="Previous month">&lsaquo;</button>
+          <div id="scroller" class="calendar-scroller"></div>
+          <button id="nextBtn" class="nav-arrow" aria-label="Next month">&rsaquo;</button>
+        </div>
+      </section>
+
+      <div class="content-grid" id="dayView" hidden>
+        <section class="calendar-card" id="calendarCardDay"></section>
+
+        <section class="day-card" id="dayPanel">
+          <div id="dayModalBody"><p class="muted">Select a date to see its details.</p></div>
+        </section>
+      </div>
+
+      <section class="history-view" id="historyView" hidden>
+        <div id="historyBody"><p class="muted">Loading…</p></div>
+      </section>
+    </main>
   </div>
 
   <div id="jarModal" class="modal-backdrop" hidden>

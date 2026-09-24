@@ -10,6 +10,7 @@ const calendarRoutes = require('./calendarRoutes');
 const dayRoutes = require('./dayRoutes');
 const jarRoutes = require('./jarRoutes');
 const settingsRoutes = require('./settingsRoutes');
+const historyRoutes = require('./historyRoutes');
 const { getLlmSettings } = require('./models/llmSettings');
 
 // Gmail OAuth credentials are always required — there's no per-user
@@ -41,6 +42,7 @@ app.use(calendarRoutes);
 app.use(dayRoutes);
 app.use(jarRoutes);
 app.use(settingsRoutes);
+app.use(historyRoutes);
 
 app.post('/api/sync', async (req, res) => {
   if (!isConnected()) {

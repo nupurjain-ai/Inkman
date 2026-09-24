@@ -1,35 +1,57 @@
 :root {
   color-scheme: light dark;
-  --bg: #f7f7f8;
-  --card-bg: #ffffff;
-  --text: #1a1a1a;
-  --muted: #666;
-  --border: #e2e2e2;
-  --accent: #1a73e8;
-  --accent-text: #ffffff;
-  --notice-bg: #fff4e5;
+  --bg: #f3e9da;
+  --shell-bg: #faf3e8;
+  --card-bg: #fdf9f2;
+  --text: #3a2a20;
+  --heading: #7a3030;
+  --muted: #93816d;
+  --border: #e6d8c0;
+  --accent: #7a3030;
+  --accent-text: #fbf1e2;
+  --notice-bg: #f6e6c9;
   --notice-text: #8a5300;
-  --red: #e5484d;
-  --red-bg: #fdeceb;
-  --green: #2f9e44;
-  --green-bg: #eaf7ec;
+  --red: #b8453f;
+  --red-bg: #f3d3ce;
+  --green: #4f7a4f;
+  --green-bg: #dcead6;
+  --input-bg: #ffffff;
+  --shadow: 0 10px 30px rgba(90, 60, 30, 0.08);
+  --onboarding-bg: #f8ddc9;
+  --onboarding-btn-bg: #e3c4a3;
+  --onboarding-btn-border: #7a3030;
+  --heat-red-lo: #faeae7;
+  --heat-red-hi: #dd9c94;
+  --heat-green-lo: #eef4ea;
+  --heat-green-hi: #a3c599;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121212;
-    --card-bg: #1e1e1e;
-    --text: #f0f0f0;
-    --muted: #a0a0a0;
-    --border: #333;
-    --accent: #4d9dff;
-    --accent-text: #0b0b0b;
+    --bg: #1c1712;
+    --shell-bg: #241d16;
+    --card-bg: #2b231a;
+    --text: #f1e6d8;
+    --heading: #e8b4ab;
+    --muted: #baa48d;
+    --border: #4a3d2c;
+    --accent: #e8b4ab;
+    --accent-text: #2b1414;
     --notice-bg: #3a2c10;
     --notice-text: #ffcf8a;
-    --red: #ff6b6b;
-    --red-bg: #3a1f1f;
-    --green: #51cf66;
-    --green-bg: #1c3324;
+    --red: #ff8f87;
+    --red-bg: #4a2320;
+    --green: #8fcf8f;
+    --green-bg: #24361f;
+    --input-bg: #201a13;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --onboarding-bg: #241a14;
+    --onboarding-btn-bg: #3a2a1e;
+    --onboarding-btn-border: #e8b4ab;
+    --heat-red-lo: #3f2d29;
+    --heat-red-hi: #8a5a53;
+    --heat-green-lo: #2b332a;
+    --heat-green-hi: #5c7a55;
   }
 }
 
@@ -39,9 +61,85 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding-block: 20px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding-block: 28px;
   padding-inline: 16px;
+}
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--onboarding-bg);
+  padding: 24px;
+  position: relative;
+}
+/* Same [hidden] vs. explicit-display specificity clash as elsewhere in
+   this file — author rules beat the UA [hidden] rule at equal
+   specificity, so it needs its own override. */
+.onboarding[hidden] { display: none; }
+
+.onboarding::after {
+  content: '✦';
+  position: absolute;
+  right: 8%;
+  bottom: 10%;
+  font-size: 1.6rem;
+  color: var(--onboarding-btn-border);
+  opacity: 0.25;
+}
+
+.onboarding-cat {
+  width: min(240px, 55vw);
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.onboarding-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  color: var(--heading);
+  font-size: 2.2rem;
+  margin: 8px 0 10px;
+}
+
+.onboarding-subtitle {
+  color: var(--muted);
+  font-size: 1rem;
+  max-width: 34ch;
+  margin: 0 0 28px;
+}
+
+.onboarding-continue {
+  border: 1.5px solid var(--onboarding-btn-border);
+  background: var(--onboarding-btn-bg);
+  color: var(--onboarding-btn-border);
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  padding: 14px 48px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.onboarding-continue:hover { opacity: 0.85; }
+
+@media (max-width: 480px) {
+  .onboarding-title { font-size: 1.7rem; }
+  .onboarding-continue { padding: 12px 32px; width: 100%; max-width: 320px; }
+}
+
+.app-shell {
+  max-width: 1040px;
+  margin: 0 auto;
+  background: var(--shell-bg);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 20px 24px 28px;
+  box-shadow: var(--shadow);
 }
 
 .topbar {
@@ -50,53 +148,140 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  max-width: 480px;
-  margin: 0 auto 8px;
+  margin-bottom: 4px;
 }
 
-.topbar h1 { margin: 0; font-size: 1.3rem; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--heading);
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-name {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--heading);
+}
 
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+}
+
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--heading);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover { background: var(--red-bg); }
+
+.jar-icon-img {
+  width: 24px;
+  height: auto;
+}
+
+.utility-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
 }
 
 .btn {
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--card-bg);
   color: var(--text);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
   cursor: pointer;
 }
+.btn:hover { background: var(--red-bg); }
 
 .btn.primary {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
 }
+.btn.primary:hover { opacity: 0.9; background: var(--accent); }
 
 .btn:disabled { opacity: 0.6; cursor: default; }
 
 .muted { color: var(--muted); font-size: 0.85rem; }
 
 .notice, .sync-status {
-  max-width: 480px;
-  margin: 0 auto 10px;
+  margin: 0 0 10px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.85rem;
 }
 
 .notice { background: var(--notice-bg); color: var(--notice-text); }
-.sync-status { text-align: center; }
+.sync-status { text-align: right; }
+
+.back-link {
+  display: inline-block;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  margin: 6px 0 4px;
+}
+.back-link:hover { color: var(--heading); }
+.back-link[hidden] { display: none; }
+
+.calendar-only-wrap {
+  max-width: 480px;
+  margin: 14px auto 0;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-top: 10px;
+}
+.content-grid[hidden] { display: none; }
+
+@media (max-width: 820px) {
+  .content-grid { grid-template-columns: 1fr; }
+}
+
+.calendar-card, .day-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 0;
+}
 
 .calendar-wrap {
-  max-width: 480px;
-  margin: 0 auto;
   display: flex;
   align-items: stretch;
   gap: 4px;
@@ -110,7 +295,9 @@ body {
   font-size: 1.6rem;
   cursor: pointer;
   padding: 0 4px;
+  align-self: center;
 }
+.nav-arrow:hover { color: var(--heading); }
 
 .calendar-scroller {
   flex: 1 1 auto;
@@ -124,29 +311,37 @@ body {
 .month-panel {
   flex: 0 0 100%;
   scroll-snap-align: start;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
   min-width: 0;
 }
 
 .month-title {
   text-align: center;
-  font-weight: 600;
-  margin: 0 0 12px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--heading);
+  margin: 0 0 16px;
+}
+
+.day-title {
+  text-align: center;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--heading);
+  margin: 0 0 14px;
 }
 
 .weekday-row, .day-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 
-.weekday-row { margin-bottom: 4px; }
+.weekday-row { margin-bottom: 8px; }
 .weekday-row span {
   text-align: center;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -156,24 +351,30 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 .day-cell.empty { visibility: hidden; }
 .day-cell.status-green { background: var(--green-bg); color: var(--green); }
 .day-cell.status-red { background: var(--red-bg); color: var(--red); }
 .day-cell.status-unbudgeted { color: var(--text); }
+.day-cell.status-future { color: var(--text); }
 
-.month-total {
-  margin-top: 14px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--muted);
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+.day-cell.selected {
+  box-shadow: 0 0 0 2px var(--heading);
 }
 
-.month-total strong { color: var(--text); }
+.month-total {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.month-total strong { color: var(--heading); }
 
 .month-panel.loading .day-grid { opacity: 0.4; }
 
@@ -184,19 +385,10 @@ body {
   outline: 2px solid var(--accent);
 }
 
-.jar-icon-btn {
-  border: none;
-  background: transparent;
-  font-size: 1.4rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 2px 4px;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(40, 25, 15, 0.4);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -218,7 +410,7 @@ body {
   position: relative;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 16px 16px 0 0;
+  border-radius: 18px 18px 0 0;
   width: 100%;
   max-width: 480px;
   max-height: 85vh;
@@ -227,7 +419,7 @@ body {
 }
 
 @media (min-width: 520px) {
-  .modal { border-radius: 16px; }
+  .modal { border-radius: 18px; }
 }
 
 .modal-close {
@@ -241,113 +433,180 @@ body {
   cursor: pointer;
 }
 
-.modal-jar-icon {
-  position: absolute;
-  top: 8px;
-  right: 44px;
-}
-
 .day-summary {
-  font-size: 0.95rem;
-  margin: 24px 0 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 6px 0 16px;
 }
 
 .day-stats {
   display: flex;
-  gap: 18px;
-  margin-bottom: 14px;
+  gap: 24px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
 .day-stat { font-size: 0.85rem; color: var(--muted); }
-.day-stat strong { display: block; color: var(--text); font-size: 1.1rem; }
+.day-stat strong {
+  display: block;
+  color: var(--heading);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.3rem;
+}
+
+.section-heading {
+  margin: 18px 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.exceptions-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.exceptions-toggle:hover { background: var(--red-bg); }
+.exceptions-toggle .chevron { font-size: 0.7rem; }
+
+.exceptions-panel { margin-top: 4px; }
 
 .budget-edit {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.budget-edit label {
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 .budget-edit input {
   width: 90px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--card-bg);
+  background: var(--input-bg);
   color: var(--text);
 }
 
-.txn-list { list-style: none; padding: 0; margin: 0 0 16px; }
+.txn-list { list-style: none; padding: 0; margin: 0; }
 .txn-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.88rem;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
+.txn-row:last-child { border-bottom: none; }
 .txn-row.is-exception { opacity: 0.55; }
-.txn-main { display: flex; flex-direction: column; min-width: 0; }
-.txn-main .party { font-weight: 500; }
+.txn-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 140px; }
+.txn-main .party {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+}
 .txn-main .meta { color: var(--muted); font-size: 0.78rem; }
-.txn-amount { white-space: nowrap; font-weight: 500; }
+.txn-amount {
+  flex: 0 0 auto;
+  min-width: 64px;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text);
+}
 .txn-action-btn {
+  flex: 0 0 auto;
+  min-width: 84px;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--card-bg);
   color: var(--muted);
-  border-radius: 6px;
-  padding: 3px 8px;
+  border-radius: 999px;
+  padding: 4px 12px;
   font-size: 0.75rem;
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
 }
+.txn-action-btn:hover { background: var(--red-bg); color: var(--heading); }
 
 .cash-entry-form, .goal-form {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0;
+  margin: 0;
 }
 .cash-entry-form input, .goal-form input {
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--card-bg);
+  background: var(--input-bg);
   color: var(--text);
   flex: 1 1 100px;
   min-width: 0;
 }
 
-.jar-section { margin-bottom: 22px; }
-.jar-section h3 { margin: 0 0 10px; font-size: 1rem; }
-.jar-total { font-size: 1.6rem; font-weight: 600; margin: 0 0 6px; }
+.jar-title {
+  font-family: "Playfair Display", Georgia, serif;
+  color: var(--heading);
+  font-size: 1.3rem;
+  margin: 0 0 18px;
+}
 
-.bank-balance-row { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+.jar-section { margin-bottom: 22px; }
+.jar-section h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--heading);
+}
+.jar-total {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 0 0 8px;
+}
+
+.bank-balance-row { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; flex-wrap: wrap; }
 .bank-balance-row input {
   width: 110px;
-  padding: 5px 7px;
-  border-radius: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--card-bg);
+  background: var(--input-bg);
   color: var(--text);
 }
 
 .goal-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 10px;
+  background: var(--shell-bg);
 }
 .goal-card-top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   font-size: 0.9rem;
   margin-bottom: 6px;
   gap: 8px;
 }
-.goal-name { display: flex; align-items: center; gap: 6px; }
+.goal-name { display: flex; align-items: center; gap: 6px; font-weight: 500; min-width: 0; word-break: break-word; }
 .goal-badge { font-size: 0.9rem; }
 .goal-bar-track {
   background: var(--border);
@@ -370,19 +629,277 @@ body {
 .exceptions-month-picker {
   margin-bottom: 10px;
   font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .exceptions-month-picker input {
-  padding: 4px 6px;
-  border-radius: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--card-bg);
+  background: var(--input-bg);
   color: var(--text);
+  max-width: 100%;
 }
 .exception-row {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   font-size: 0.85rem;
-  padding: 6px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
   gap: 8px;
+}
+.exception-row:last-child { border-bottom: none; }
+
+/* --- Spending & Savings History --- */
+
+.history-view {
+  max-width: 720px;
+  margin: 14px auto 0;
+}
+
+.history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.history-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  color: var(--heading);
+  font-size: 1.8rem;
+  margin: 0 0 4px;
+  line-height: 1.15;
+}
+
+.history-subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.history-badge {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.history-badge.positive { background: var(--heat-green-lo); color: var(--green); }
+.history-badge.negative { background: var(--heat-red-lo); color: var(--red); }
+
+.ytd-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.ytd-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.ytd-range-pill {
+  background: var(--shell-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ytd-savings-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ytd-savings {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--heading);
+}
+
+.ytd-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.ytd-stat { display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; }
+.ytd-stat strong { color: var(--text); font-size: 0.95rem; }
+.ytd-stat-right { text-align: right; align-items: flex-end; }
+.over-budget-days { color: var(--red); }
+
+.history-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-btn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.filter-btn.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.filter-btn:not(.active):hover { background: var(--red-bg); }
+
+.year-select {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.month-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.month-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.month-card-top h3 {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.15rem;
+  color: var(--heading);
+}
+
+.month-status-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.month-status-pill.under { background: var(--heat-green-lo); color: var(--green); }
+.month-status-pill.over { background: var(--heat-red-lo); color: var(--red); }
+
+.month-card-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+.month-spent {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--heading);
+}
+
+.month-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--shell-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+}
+
+.day-tally { display: flex; align-items: center; color: var(--muted); flex-wrap: wrap; }
+.tally-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.tally-dot.green { background: var(--green); }
+.tally-dot.red { background: var(--red); }
+
+.net-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.net-pill.positive { background: var(--heat-green-lo); color: var(--green); }
+.net-pill.negative { background: var(--heat-red-lo); color: var(--red); }
+
+.history-quote {
+  text-align: center;
+  background: var(--shell-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px;
+}
+.history-quote p {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  color: var(--text);
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.history-quote span { font-size: 0.8rem; }
+
+@media (max-width: 480px) {
+  body { padding-inline: 8px; padding-block: 16px; }
+  .app-shell { padding: 14px 12px 20px; border-radius: 18px; }
+  .calendar-card, .day-card { padding: 14px; }
+  .calendar-only-wrap { margin-top: 10px; }
+  .weekday-row, .day-grid { gap: 4px; }
+  .day-cell { font-size: 0.78rem; }
+  .month-title { font-size: 1.2rem; }
+  .day-title { font-size: 1.15rem; }
+  .jar-total { font-size: 1.5rem; }
+  .modal { padding: 16px; }
+  .history-title { font-size: 1.4rem; }
+  .ytd-savings { font-size: 1.6rem; }
+  .ytd-card, .month-card { padding: 14px; }
 }

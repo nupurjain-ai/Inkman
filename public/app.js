@@ -6,15 +6,24 @@ const syncStatus = document.getElementById('syncStatus');
 const scroller = document.getElementById('scroller');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
-const dayModal = document.getElementById('dayModal');
+const calendarWrap = document.getElementById('calendarWrap');
+const calendarOnlyView = document.getElementById('calendarOnlyView');
+const calendarCardDay = document.getElementById('calendarCardDay');
+const dayView = document.getElementById('dayView');
+const backLink = document.getElementById('backLink');
 const dayModalBody = document.getElementById('dayModalBody');
-const dayJarBtn = document.getElementById('dayJarBtn');
 const jarModal = document.getElementById('jarModal');
 const jarModalBody = document.getElementById('jarModalBody');
 const jarBtn = document.getElementById('jarBtn');
 const settingsModal = document.getElementById('settingsModal');
 const settingsModalBody = document.getElementById('settingsModalBody');
 const settingsBtn = document.getElementById('settingsBtn');
+const onboardingView = document.getElementById('onboardingView');
+const appShell = document.getElementById('appShell');
+const historyBtn = document.getElementById('historyBtn');
+const historyView = document.getElementById('historyView');
+const historyBody = document.getElementById('historyBody');
+const onboardingContinueBtn = document.getElementById('onboardingContinueBtn');
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -27,6 +36,15 @@ let centerYear = today.getFullYear();
 let centerMonth = today.getMonth() + 1; // 1-12
 let suppressScroll = false;
 let scrollTimer = null;
+
+const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+let currentDayDate = todayDateStr;
+let exceptionsMonth = todayDateStr.slice(0, 7);
+
+function formatDateLong(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+}
 
 function addMonths(year, month, delta) {
   const total = (month - 1) + delta;
@@ -69,6 +87,50 @@ async function loadMonthData(panel, year, month) {
   }
 }
 
+// --- Day-circle heat coloring ---
+// Color intensity is relative to the OTHER days in the same month, not
+// to any fixed rupee scale — a day's overspend/underspend is expressed
+// as a percentage of that month's own worst overspend/best underspend,
+// then mapped onto a light->dark gradient. Recomputed from scratch on
+// every render, so it naturally stays current as days are added.
+
+function getCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const n = parseInt(full, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mixRgb(a, b, t) {
+  return [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t));
+}
+
+function rgbCss([r, g, b]) {
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+// Perceptual luminance decides text color per-cell so contrast holds
+// up across the whole gradient, rather than flipping at a fixed point
+// in the light->dark ramp (which risks a muddy middle otherwise).
+const HEAT_DARK_TEXT = [42, 31, 24];
+const HEAT_LIGHT_TEXT = [253, 246, 236];
+function pickHeatTextColor([r, g, b]) {
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 140 ? HEAT_DARK_TEXT : HEAT_LIGHT_TEXT;
+}
+
+function applyHeatColor(cell, kind, pct) {
+  const lo = hexToRgb(getCssVar(kind === 'red' ? '--heat-red-lo' : '--heat-green-lo'));
+  const hi = hexToRgb(getCssVar(kind === 'red' ? '--heat-red-hi' : '--heat-green-hi'));
+  const bg = mixRgb(lo, hi, Math.max(0, Math.min(1, pct)));
+  cell.style.backgroundColor = rgbCss(bg);
+  cell.style.color = rgbCss(pickHeatTextColor(bg));
+}
+
 function renderMonthData(panel, data) {
   const grid = panel.querySelector('.day-grid');
   grid.innerHTML = '';
@@ -79,19 +141,57 @@ function renderMonthData(panel, data) {
     grid.appendChild(empty);
   }
 
+  // First pass: find this month's worst overspend and best underspend
+  // — the top of each color scale. A day exactly at budget has an
+  // underspend of 0, which naturally lands it at the lightest green.
+  // Future dates are skipped here: ₹0 spent on a day that hasn't
+  // happened yet is trivially the "best" possible underspend, and
+  // would otherwise hijack the dark end of the scale from real,
+  // deliberately frugal days — a day that hasn't occurred isn't data.
+  let maxOverspend = 0;
+  let maxUnderspend = 0;
   data.days.forEach((d) => {
+    if (d.date > todayDateStr) return;
+    if (d.status === 'red') {
+      maxOverspend = Math.max(maxOverspend, d.spent - d.budget);
+    } else if (d.status === 'green') {
+      maxUnderspend = Math.max(maxUnderspend, d.budget - d.spent);
+    }
+  });
+
+  data.days.forEach((d) => {
+    const isFuture = d.date > todayDateStr;
     const cell = document.createElement('div');
-    cell.className = `day-cell status-${d.status}`;
+    cell.className = `day-cell status-${isFuture ? 'future' : d.status}`;
     cell.textContent = d.day;
-    cell.title = d.budget == null
-      ? `${d.date}: ₹${money(d.spent)} spent, no budget set`
-      : `${d.date}: ₹${money(d.spent)} spent of ₹${money(d.budget)} budget`;
-    cell.addEventListener('click', () => openDayModal(d.date));
+    cell.dataset.date = d.date;
+    cell.classList.toggle('selected', d.date === currentDayDate);
+    cell.title = isFuture
+      ? `${d.date}: upcoming`
+      : d.budget == null
+        ? `${d.date}: ₹${money(d.spent)} spent, no budget set`
+        : `${d.date}: ₹${money(d.spent)} spent of ₹${money(d.budget)} budget`;
+    cell.addEventListener('click', () => { location.hash = `#/day/${d.date}`; });
+
+    if (!isFuture && d.status === 'red') {
+      const overspend = d.spent - d.budget;
+      applyHeatColor(cell, 'red', maxOverspend > 0 ? overspend / maxOverspend : 1);
+    } else if (!isFuture && d.status === 'green') {
+      const underspend = d.budget - d.spent;
+      applyHeatColor(cell, 'green', maxUnderspend > 0 ? underspend / maxUnderspend : 0);
+    }
+
     grid.appendChild(cell);
   });
 
   panel.querySelector('.month-total').innerHTML =
     `Total spent this month: <strong>₹${money(data.monthTotal)}</strong>`;
+}
+
+function markSelectedCell() {
+  document.querySelectorAll('.day-cell').forEach((cell) => {
+    cell.classList.toggle('selected', cell.dataset.date === currentDayDate);
+  });
 }
 
 function renderPanels() {
@@ -214,17 +314,66 @@ function closeModal(modal) { modal.hidden = true; }
 document.querySelectorAll('[data-close-modal]').forEach((btn) => {
   btn.addEventListener('click', () => closeModal(document.getElementById(btn.dataset.closeModal)));
 });
-[dayModal, jarModal, settingsModal].forEach((modal) => {
+[jarModal, settingsModal].forEach((modal) => {
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
 });
 
-// --- Day Detail View ---
+// --- Routing (calendar page vs. a day's detail page) ---
 
-let currentDayDate = null;
+function parseRoute() {
+  const dayMatch = location.hash.match(/^#\/day\/(\d{4}-\d{2}-\d{2})$/);
+  if (dayMatch) return { view: 'day', date: dayMatch[1] };
+  if (location.hash === '#/history') return { view: 'history' };
+  return { view: 'calendar' };
+}
 
-async function openDayModal(date) {
+// Reparenting calendarWrap detaches + reattaches it, which resets the
+// scroller's scrollLeft and fires its scroll handler — left alone,
+// that debounced handler reads the reset position as "scrolled to the
+// previous month" and silently shifts centerMonth. Skip the move
+// entirely when it isn't needed, and when it is, suppress the scroll
+// handler and re-center exactly like renderPanels()/resize do.
+function moveCalendarWrapTo(target) {
+  if (calendarWrap.parentElement === target) return;
+  suppressScroll = true;
+  target.appendChild(calendarWrap);
+  scroller.scrollLeft = scroller.clientWidth;
+  requestAnimationFrame(() => { suppressScroll = false; });
+}
+
+function applyRoute() {
+  const route = parseRoute();
+  calendarOnlyView.hidden = true;
+  dayView.hidden = true;
+  historyView.hidden = true;
+  backLink.hidden = true;
+
+  if (route.view === 'day') {
+    dayView.hidden = false;
+    backLink.hidden = false;
+    moveCalendarWrapTo(calendarCardDay);
+    if (route.date === currentDayDate) {
+      markSelectedCell();
+    } else {
+      selectDay(route.date);
+    }
+  } else if (route.view === 'history') {
+    historyView.hidden = false;
+    backLink.hidden = false;
+    loadHistory();
+  } else {
+    calendarOnlyView.hidden = false;
+    moveCalendarWrapTo(calendarOnlyView);
+  }
+}
+
+window.addEventListener('hashchange', applyRoute);
+
+// --- Day Detail Panel ---
+
+async function selectDay(date) {
   currentDayDate = date;
-  openModal(dayModal);
+  markSelectedCell();
   dayModalBody.innerHTML = '<p class="muted">Loading…</p>';
   await refreshDayModal();
 }
@@ -242,13 +391,18 @@ async function refreshDayModal() {
 
 function renderDayModal(data) {
   const budgetValue = data.budget == null ? '' : data.budget;
+  // Default the Exceptions filter to whichever month this day belongs
+  // to, so switching to a different month's day doesn't keep showing a
+  // previous month's exceptions. The picker can still be changed by
+  // hand for this render; it just resets to match the day next time.
+  exceptionsMonth = data.date.slice(0, 7);
 
   const txnRows = data.transactions.length === 0
     ? '<p class="muted">No transactions this day.</p>'
     : `<ul class="txn-list">${data.transactions.map((t) => `
         <li class="txn-row ${t.is_exception ? 'is-exception' : ''}">
           <div class="txn-main">
-            <span class="party">${escapeHtml(t.party || 'Unknown')}</span>
+            <span class="party">${escapeHtml((t.party || 'Unknown').toUpperCase())}</span>
             <span class="meta">${escapeHtml(t.category || 'Uncategorized')}${t.is_exception ? ' · exception: ' + escapeHtml(t.exception_name || '') : ''}${t.source === 'cash' ? ' · cash' : ''}</span>
           </div>
           <span class="txn-amount">₹${money(t.amount)}</span>
@@ -259,7 +413,7 @@ function renderDayModal(data) {
       `).join('')}</ul>`;
 
   dayModalBody.innerHTML = `
-    <p class="muted" style="margin:0 0 2px;">${data.date}</p>
+    <h2 class="day-title">${formatDateLong(data.date)}</h2>
     <div class="day-stats">
       <div class="day-stat">Limit<strong>₹${money(data.budget)}</strong></div>
       <div class="day-stat">Spent<strong>₹${money(data.spent)}</strong></div>
@@ -272,16 +426,27 @@ function renderDayModal(data) {
       <button id="saveBudgetBtn" class="btn">Save</button>
     </div>
 
-    <h3 style="margin:0 0 8px;font-size:0.95rem;">Transactions</h3>
+    <h3 class="section-heading">Transactions</h3>
     ${txnRows}
 
-    <h3 style="margin:16px 0 8px;font-size:0.95rem;">Add cash spend</h3>
+    <h3 class="section-heading">Add cash spend</h3>
     <form id="cashForm" class="cash-entry-form">
       <input type="number" min="0.01" step="0.01" placeholder="Amount" id="cashAmount" required />
       <input type="text" placeholder="What for?" id="cashParty" />
       <input type="text" placeholder="Category (optional)" id="cashCategory" />
       <button type="submit" class="btn">Add</button>
     </form>
+
+    <button type="button" id="exceptionsToggleBtn" class="exceptions-toggle" aria-expanded="false">
+      Show exceptions <span class="chevron">&#9662;</span>
+    </button>
+    <div id="exceptionsPanel" class="exceptions-panel" hidden>
+      <div class="exceptions-month-picker">
+        <label for="exceptionsMonthInput">Month</label>
+        <input id="exceptionsMonthInput" type="month" value="${exceptionsMonth}" />
+      </div>
+      <div id="exceptionsList"><p class="muted">Loading…</p></div>
+    </div>
   `;
 
   document.getElementById('saveBudgetBtn').addEventListener('click', saveBudget);
@@ -289,6 +454,21 @@ function renderDayModal(data) {
   dayModalBody.querySelectorAll('.txn-action-btn').forEach((btn) => {
     btn.addEventListener('click', () => toggleException(btn.dataset.id, btn.dataset.action));
   });
+  document.getElementById('exceptionsMonthInput').addEventListener('change', (e) => {
+    exceptionsMonth = e.target.value;
+    loadExceptionsList();
+  });
+  const exceptionsToggleBtn = document.getElementById('exceptionsToggleBtn');
+  const exceptionsPanel = document.getElementById('exceptionsPanel');
+  exceptionsToggleBtn.addEventListener('click', () => {
+    const willExpand = exceptionsPanel.hidden;
+    exceptionsPanel.hidden = !willExpand;
+    exceptionsToggleBtn.setAttribute('aria-expanded', String(willExpand));
+    exceptionsToggleBtn.innerHTML = willExpand
+      ? 'Hide exceptions <span class="chevron">&#9652;</span>'
+      : 'Show exceptions <span class="chevron">&#9662;</span>';
+  });
+  loadExceptionsList();
 }
 
 async function saveBudget() {
@@ -336,28 +516,17 @@ async function toggleException(id, action) {
 
 // --- Savings Jar ---
 
-let exceptionsMonth = null;
 let jarYear = null;
 let jarMonth = null;
 
-// The main jar icon reflects whichever month is currently centered on
-// the calendar; the one inside a day's detail view reflects that day's
-// own month — either way, Total Amount is scoped to that specific
-// month, not always "today's" real month.
-dayJarBtn.addEventListener('click', () => {
-  closeModal(dayModal);
-  const [y, m] = currentDayDate.split('-').map(Number);
-  openJarModal(y, m);
-});
+// The jar icon reflects whichever month is currently centered on the
+// calendar — Total Amount is scoped to that specific month, not always
+// "today's" real month.
 jarBtn.addEventListener('click', () => openJarModal(centerYear, centerMonth));
 
 async function openJarModal(year, month) {
   jarYear = year;
   jarMonth = month;
-  if (!exceptionsMonth) {
-    const d = new Date();
-    exceptionsMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
   openModal(jarModal);
   jarModalBody.innerHTML = '<p class="muted">Loading…</p>';
   await refreshJarModal();
@@ -390,8 +559,10 @@ function renderJarModal(data) {
       }).join('');
 
   jarModalBody.innerHTML = `
+    <h2 class="jar-title">Savings Jar</h2>
+
     <div class="jar-section">
-      <h3>Total Amount <span class="muted" style="font-weight:normal;font-size:0.75rem;">(${MONTH_NAMES[data.month - 1]} ${data.year}, resets on the 1st)</span></h3>
+      <h3>Total amount of the month <span class="muted" style="font-weight:normal;font-size:0.75rem;">(${MONTH_NAMES[data.month - 1]} ${data.year}, resets on the 1st)</span></h3>
       <p class="jar-total">₹${money(data.totalAmount)}</p>
       <div class="bank-balance-row">
         <label for="bankBalanceInput">Bank balance (optional)</label>
@@ -409,15 +580,6 @@ function renderJarModal(data) {
         <button type="submit" class="btn">Add goal</button>
       </form>
     </div>
-
-    <div class="jar-section">
-      <h3>Exceptions</h3>
-      <div class="exceptions-month-picker">
-        <label for="exceptionsMonthInput">Month</label>
-        <input id="exceptionsMonthInput" type="month" value="${exceptionsMonth}" />
-      </div>
-      <div id="exceptionsList"><p class="muted">Loading…</p></div>
-    </div>
   `;
 
   document.getElementById('saveBankBalanceBtn').addEventListener('click', saveBankBalance);
@@ -425,12 +587,6 @@ function renderJarModal(data) {
   jarModalBody.querySelectorAll('.goal-delete-btn').forEach((btn) => {
     btn.addEventListener('click', () => deleteGoal(btn.dataset.goalId));
   });
-  document.getElementById('exceptionsMonthInput').addEventListener('change', (e) => {
-    exceptionsMonth = e.target.value;
-    loadExceptionsList();
-  });
-
-  loadExceptionsList();
 }
 
 async function loadExceptionsList() {
@@ -572,5 +728,151 @@ async function submitLlmSettings(e) {
   }
 }
 
+// --- Spending & Savings History ---
+
+historyBtn.addEventListener('click', () => { location.hash = '#/history'; });
+
+let historyData = null;
+const historyState = { filter: 'all', year: null };
+
+async function loadHistory() {
+  historyBody.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const res = await fetch('/api/history');
+    if (!res.ok) throw new Error('failed');
+    historyData = await res.json();
+    historyState.filter = 'all';
+    historyState.year = historyData.ytd.year;
+    renderHistory();
+  } catch (err) {
+    historyBody.innerHTML = '<p class="muted">Failed to load history.</p>';
+  }
+}
+
+function formatMoneySigned(n) {
+  const sign = n < 0 ? '-' : '';
+  return `${sign}₹${money(Math.abs(n))}`;
+}
+
+function renderHistory() {
+  if (!historyData) return;
+  const { ytd, years } = historyData;
+  const rangeLabel = ytd.startMonth === ytd.endMonth
+    ? `${MONTH_NAMES[ytd.startMonth - 1]} ${ytd.year}`
+    : `${MONTH_NAMES[ytd.startMonth - 1].slice(0, 3)} – ${MONTH_NAMES[ytd.endMonth - 1].slice(0, 3)} ${ytd.year}`;
+  // Not ytd.savings >= 0 — that figure is floored at 0 per month (a bad
+  // month contributes nothing rather than subtracting, same rule as
+  // goal progress), so it's ALWAYS >= 0 and would say "Healthy" even
+  // when every month ran over budget. The day-level green ratio is the
+  // one signal here that can actually go either way.
+  const isHealthy = ytd.greenPct >= 50;
+  const healthLabel = isHealthy ? 'Healthy' : 'Needs attention';
+
+  const monthsForYear = historyData.months.filter((m) => m.year === historyState.year);
+  const visibleMonths = historyState.filter === 'under'
+    ? monthsForYear.filter((m) => m.status === 'under')
+    : monthsForYear;
+
+  const monthsHtml = visibleMonths.length === 0
+    ? '<p class="muted">No months to show here.</p>'
+    : visibleMonths.map((m) => {
+        const netPillClass = m.netSaved >= 0 ? 'net-pill positive' : 'net-pill negative';
+        const netPillText = m.netSaved >= 0
+          ? `+₹${money(m.netSaved)} moved to Jar`
+          : `-₹${money(Math.abs(m.netSaved))} (Overspent)`;
+        return `
+          <div class="month-card">
+            <div class="month-card-top">
+              <h3>${MONTH_NAMES[m.month - 1]} ${m.year}</h3>
+              <span class="month-status-pill ${m.status}">${m.status === 'under' ? 'Under Budget' : 'Over Budget'}</span>
+            </div>
+            <div class="month-card-row">
+              <span class="muted">Budgeted ₹${money(m.budgeted)}</span>
+              <span class="month-spent">₹${money(m.spent)}<span class="muted"> Spent</span></span>
+            </div>
+            <div class="month-card-footer">
+              <span class="day-tally"><span class="tally-dot green"></span>${m.greenDays} Green days &nbsp;|&nbsp; <span class="tally-dot red"></span>${m.redDays} Red days</span>
+              <span class="${netPillClass}">${netPillText}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+  const yearOptionsHtml = years.map((y) => `<option value="${y}" ${y === historyState.year ? 'selected' : ''}>Year ${y}</option>`).join('');
+
+  historyBody.innerHTML = `
+    <div class="history-header">
+      <div>
+        <h1 class="history-title">Spending &amp; Savings History</h1>
+        <p class="history-subtitle">Mindful monthly rhythms &amp; balance shifts</p>
+      </div>
+      <span class="history-badge ${isHealthy ? 'positive' : 'negative'}">${healthLabel}</span>
+    </div>
+
+    <div class="ytd-card">
+      <div class="ytd-card-top">
+        <span class="muted">${ytd.year} Year-to-Date Savings</span>
+        <span class="ytd-range-pill">${rangeLabel}</span>
+      </div>
+      <div class="ytd-savings-row">
+        <span class="ytd-savings">${formatMoneySigned(ytd.savings)}</span>
+        <span class="muted">&uarr; Moved to Jar</span>
+      </div>
+      <div class="ytd-stats-row">
+        <div class="ytd-stat">
+          <strong>${ytd.greenPct}% Under-budget</strong>
+          <span class="muted">${ytd.greenDays} calm disciplined days</span>
+        </div>
+        <div class="ytd-stat ytd-stat-right">
+          <span class="muted">Over-budget Days</span>
+          <strong class="over-budget-days">${ytd.redDays} days (${ytd.redPct}%)</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-filters">
+      <button type="button" class="filter-btn ${historyState.filter === 'all' ? 'active' : ''}" data-filter="all">All Months</button>
+      <button type="button" class="filter-btn ${historyState.filter === 'under' ? 'active' : ''}" data-filter="under">Only Under-Budget</button>
+      <select id="historyYearSelect" class="year-select">${yearOptionsHtml}</select>
+    </div>
+
+    <div class="month-list">${monthsHtml}</div>
+
+    <div class="history-quote">
+      <p>&ldquo;Awareness without judgment turns spending into mindful living.&rdquo;</p>
+      <span class="muted">— Inkman</span>
+    </div>
+  `;
+
+  historyBody.querySelectorAll('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      historyState.filter = btn.dataset.filter;
+      renderHistory();
+    });
+  });
+  document.getElementById('historyYearSelect').addEventListener('change', (e) => {
+    historyState.year = Number(e.target.value);
+    renderHistory();
+  });
+}
+
+// --- Onboarding ---
+// Shown on every page load/refresh (not just once) — it's the site's
+// first page by design, so there's no "seen it already" state to track.
+
+function showApp() {
+  onboardingView.hidden = true;
+  appShell.hidden = false;
+  // The calendar panels (and the day view, if that's the current route)
+  // were laid out and scroll-centered while appShell was display:none,
+  // so every width read was 0 — recenter now that it's actually visible.
+  suppressScroll = true;
+  scroller.scrollLeft = scroller.clientWidth;
+  requestAnimationFrame(() => { suppressScroll = false; });
+}
+
+onboardingContinueBtn.addEventListener('click', showApp);
+
 renderPanels();
 refreshStatus();
+applyRoute();

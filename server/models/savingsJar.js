@@ -122,6 +122,7 @@ function listGoals() {
 module.exports = {
   computeMonthNet,
   computeGoalProgress,
+  addMonthsToKey,
   getBankBalance,
   setBankBalance,
   createGoal,
