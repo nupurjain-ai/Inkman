@@ -80,6 +80,6 @@ app.listen(PORT, () => {
   } catch (err) {
     console.error('agent.json failed to load at startup:', err.message);
   }
-  console.log(`Inkman listening on http://localhost:${PORT}`);
+  console.log(`Broke.AI listening on http://localhost:${PORT}`);
   console.log(`Loaded agent.json system_prompt: "${promptPreview}"`);
 });

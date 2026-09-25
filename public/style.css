@@ -162,13 +162,9 @@ body {
   height: 38px;
   border-radius: 50%;
   background: var(--red-bg);
-  color: var(--heading);
-  font-family: "Playfair Display", Georgia, serif;
-  font-weight: 700;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  object-fit: contain;
+  padding: 2px;
+  display: block;
 }
 
 .brand-name {
@@ -871,22 +867,6 @@ body {
 }
 .net-pill.positive { background: var(--heat-green-lo); color: var(--green); }
 .net-pill.negative { background: var(--heat-red-lo); color: var(--red); }
-
-.history-quote {
-  text-align: center;
-  background: var(--shell-bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 22px;
-}
-.history-quote p {
-  font-family: "Playfair Display", Georgia, serif;
-  font-style: italic;
-  color: var(--text);
-  font-size: 1rem;
-  margin: 0 0 8px;
-}
-.history-quote span { font-size: 0.8rem; }
 
 @media (max-width: 480px) {
   body { padding-inline: 8px; padding-block: 16px; }

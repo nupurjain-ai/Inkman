@@ -837,11 +837,6 @@ function renderHistory() {
     </div>
 
     <div class="month-list">${monthsHtml}</div>
-
-    <div class="history-quote">
-      <p>&ldquo;Awareness without judgment turns spending into mindful living.&rdquo;</p>
-      <span class="muted">— Inkman</span>
-    </div>
   `;
 
   historyBody.querySelectorAll('.filter-btn').forEach((btn) => {
