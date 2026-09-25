@@ -1,0 +1,19 @@
+{
+  "name": "kitkash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UPI Monthly Budget Tracker — calendar-based budget tracker with Gmail-sourced spend, savings jar, and goals.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@google/genai": "^2.23.0",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "googleapis": "^140.0.1",
+    "openai": "^4.77.0"
+  }
+}
