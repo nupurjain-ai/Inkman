@@ -1,4 +1,4 @@
-# Running Broke.AI v1
+# Running KitKash v1
 
 A minimal Node/Express app: connect Gmail, an AI agent (Gemini, via
 function calling) searches for "UPI" in the subject line, you see a count.
@@ -58,7 +58,7 @@ prompt is active.
 ## 5. Test end-to-end
 
 1. Click **Connect Gmail**. Since the app is in Testing mode, Google shows
-   an "unverified app" warning — click **Advanced → Go to Broke.AI
+   an "unverified app" warning — click **Advanced → Go to KitKash
    (unsafe)** to proceed, then grant the read-only Gmail permission.
    (This button's label mirrors whatever app name is set on the OAuth
    consent screen in Google Cloud Console — rename it there too if it
@@ -71,7 +71,7 @@ prompt is active.
 4. **Test the empty state**: temporarily set the range to something
    unlikely to match (e.g. 1 day) if you don't have recent UPI mail.
 5. **Test the reconnect flow**: revoke access at
-   https://myaccount.google.com/permissions (find "Broke.AI" — or
+   https://myaccount.google.com/permissions (find "KitKash" — or
    whatever name is set on the OAuth consent screen — and remove
    it), then click Search again — you should see the "reconnect" notice
    and a "Reconnect Gmail" button, not a crash or a raw error.

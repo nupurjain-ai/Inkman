@@ -1,4 +1,4 @@
-# Broke.AI — UPI Expense Tracker & Auto-Save Assistant
+# KitKash — UPI Expense Tracker & Auto-Save Assistant
 
 **v1 scope:** connect Gmail (OAuth, read-only), an AI agent (Gemini API,
 via function calling) searches the inbox for "UPI" in the subject line,
